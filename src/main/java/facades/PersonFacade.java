@@ -2,6 +2,7 @@ package facades;
 
 import dto.PersonDTO;
 import dto.PersonsDTO;
+import entities.Address;
 import entities.Person;
 import exceptions.MissingInputException;
 import exceptions.PersonNotFoundException;
@@ -38,7 +39,7 @@ public class PersonFacade implements IPersonFacade {
     
 
     @Override
-    public PersonDTO addPerson(String fName, String lName, String phone) throws MissingInputException {
+    public PersonDTO addPerson(String fName, String lName, String phone, String street, String zip, String city) throws MissingInputException {
         if((fName.length() == 0) || (lName.length() == 0)){
             throw new MissingInputException("Either first name or last name missing in trying to add a new person");
         }
@@ -46,6 +47,16 @@ public class PersonFacade implements IPersonFacade {
         Person person = new Person(fName, lName, phone);
         try{
             em.getTransaction().begin();
+            Query query = em.createQuery("SELECT a FROM Address a WHERE a.street = :street AND a.zip = :zip AND a.city = :city");
+            query.setParameter("street", street);
+            query.setParameter("zip", zip);
+            query.setParameter("city", city);
+            List<Address> addresses = query.getResultList();
+            if(addresses.size()> 0){
+                person.setAddress(addresses.get(0));
+            } else{
+                person.setAddress(new Address(street, zip, city));
+            }
             em.persist(person);
             em.getTransaction().commit();
         } finally {
@@ -119,14 +130,14 @@ public class PersonFacade implements IPersonFacade {
             if (person == null) {
                 throw new PersonNotFoundException(String.format("Person with id: (%d) not found, try something else", p.getId()));
             } else {
-
                 person.setFirstName(p.getfName());
                 person.setLastName(p.getlName());
                 person.setPhone(p.getPhone());
                 person.setLastEdited();
+                person.getAddress().setStreet(p.getStreet());
+                person.getAddress().setZip(p.getZip());
+                person.getAddress().setCity(p.getCity());
             }
-
-            em.merge(person);
             em.getTransaction().commit();
             PersonDTO personDTO = new PersonDTO(person);
             return personDTO;
